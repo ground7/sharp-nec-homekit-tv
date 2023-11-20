@@ -1,7 +1,6 @@
 from pyhap.accessory import Accessory
 from pyhap.const import CATEGORY_TELEVISIO
 import logging
-logger = logging.getLogger(__name__)
 
 class TV(Accessory):
 
