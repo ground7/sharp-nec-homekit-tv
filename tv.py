@@ -1,6 +1,7 @@
 from pyhap.accessory import Accessory
-from pyhap.const import CATEGORY_TELEVISION
-
+from pyhap.const import CATEGORY_TELEVISIO
+import logging
+logger = logging.getLogger(__name__)
 
 class TV(Accessory):
 
@@ -26,9 +27,9 @@ class TV(Accessory):
         tv_service = self.add_preload_service(
             'Television', ['Name',
                            'ConfiguredName',
-                           'Active',
-                           'ActiveIdentifier',
-                           'RemoteKey',
+                           'Active', # On or Off
+                           'ActiveIdentifier', # Media Source
+                           'RemoteKey', # iPhone Remote App
                            'SleepDiscoveryMode'],
         )
         self._active = tv_service.configure_char(
@@ -54,7 +55,19 @@ class TV(Accessory):
             # TODO: implement persistence for ConfiguredName
             input_source.configure_char('ConfiguredName', value=source_name)
             input_source.configure_char('InputSourceType', value=source_type)
+            #  "Other": 0,
+            #  "HomeScreen": 1,
+            #  "Tuner": 2,
+            #  "HDMI": 3,
+            #  "CompositeVideo": 4,
+            #  "SVideo": 5,
+            #  "ComponentVideo": 6,
+            #  "DVI": 7,
+            #  "AirPlay": 8,
+            #  "USB": 9,
+            #  "Application": 10
             input_source.configure_char('IsConfigured', value=1)
+            # Set visibility to shown
             input_source.configure_char('CurrentVisibilityState', value=0)
 
             tv_service.add_linked_service(input_source)
@@ -75,19 +88,32 @@ class TV(Accessory):
         )
 
     def _on_active_changed(self, value):
-        print('Turn %s' % ('on' if value else 'off'))
+        logger.debug('Turn %s' % ('on' if value else 'off'))
 
     def _on_active_identifier_changed(self, value):
-        print('Change input to %s' % list(self.SOURCES.keys())[value-1])
+        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
 
     def _on_remote_key(self, value):
-        print('Remote key %d pressed' % value)
+        logger.debug('Remote key %d pressed' % value)
+        #  "Rewind": 0,
+        #  "FastForward": 1,
+        #  "NextTrack": 2,
+        #  "PreviousTrack": 3,
+        #  "ArrowUp": 4,
+        #  "ArrowDown": 5,
+        #  "ArrowLeft": 6,
+        #  "ArrowRight": 7,
+        #  "Select": 8,
+        #  "Back": 9,
+        #  "Exit": 10,
+        #  "PlayPause": 11,
+        #  "Information": 15
 
     def _on_mute(self, value):
-        print('Mute' if value else 'Unmute')
+        logger.debug('Mute' if value else 'Unmute')
 
     def _on_volume_selector(self, value):
-        print('%screase volume' % ('In' if value == 0 else 'De'))
+        logger.debug('%screase volume' % ('In' if value == 0 else 'De'))
 
 
 def main():
