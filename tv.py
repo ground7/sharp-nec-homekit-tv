@@ -9,9 +9,9 @@ class TV(Accessory):
 
     NAME = 'Sharp NEC TV'
     SOURCES = {
-        'HDMI 1': 3,
-        'HDMI 2': 3,
-        'HDMI 3': 3,
+        'HDMI 1': 3, # OPCODE_INPUT 17
+        'HDMI 2': 3, # OPCODE_INPUT 18
+        'COMPUTE MODULE': 1, # OPCODE_INPUT 136
     }
 
     def __init__(self, *args, **kwargs):
@@ -30,6 +30,7 @@ class TV(Accessory):
                            'Active', # On or Off
                            'ActiveIdentifier', # Media Source
                            'RemoteKey', # iPhone Remote App
+                           # 'Brightness', # OPCODE_PICTURE__BRIGHTNESS 0 to 100
                            'SleepDiscoveryMode'],
         )
         self._active = tv_service.configure_char(
@@ -89,9 +90,16 @@ class TV(Accessory):
 
     def _on_active_changed(self, value):
         logger.debug('Turn %s' % ('on' if value else 'off'))
+        # Switch to compute module and turn off HDMI (set to sleep from this)
+        # vcgencmd display_power 0 # Turns HDMI OFF
+        # vcgencmd display_power 1 # Turns HDMI ON (should wake up as long as power_setting auto_display_off is disabled)
 
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
+        # 'DisplayPort': 
+        # 'HDMI 1': 3, # OPCODE_INPUT 17
+        # 'HDMI 2': 3, # OPCODE_INPUT 18
+        # 'COMPUTE MODULE': 1, # OPCODE_INPUT 136
 
     def _on_remote_key(self, value):
         logger.debug('Remote key %d pressed' % value)
@@ -99,7 +107,7 @@ class TV(Accessory):
         #  "FastForward": 1,
         #  "NextTrack": 2,
         #  "PreviousTrack": 3,
-        #  "ArrowUp": 4,
+        #  "ArrowUp": 4, # libcec for arrows select back exit playpause? information should be menu then
         #  "ArrowDown": 5,
         #  "ArrowLeft": 6,
         #  "ArrowRight": 7,
@@ -107,13 +115,13 @@ class TV(Accessory):
         #  "Back": 9,
         #  "Exit": 10,
         #  "PlayPause": 11,
-        #  "Information": 15
+        #  "Information": 15 OPCODE_OSD__COMMUNICATIONS_INFORMATION
 
     def _on_mute(self, value):
-        logger.debug('Mute' if value else 'Unmute')
+        logger.debug('Mute' if value == 1 else 'Unmute') # OPCODE_AUDIO__MUTE or maybe OPCODE_SCREEN_MUTE 1 = mute 2 = unmute
 
     def _on_volume_selector(self, value):
-        logger.debug('%screase volume' % ('In' if value == 0 else 'De'))
+        logger.debug('%screase volume' % ('In' if value == 0 else 'De')) # OPCODE_AUDIO__AUDIO_VOLUME 0 to 100
 
 
 def main():
