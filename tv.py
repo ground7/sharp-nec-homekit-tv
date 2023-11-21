@@ -10,9 +10,9 @@ class TV(Accessory):
     NAME = 'Sharp NEC TV'
     SOURCES = {
         'DisplayPort': 0, # OPCODE_INPUT 15
-        'HDMI 1': 3, # OPCODE_INPUT 17
-        'HDMI 2': 3, # OPCODE_INPUT 18
-        'COMPUTE MODULE': 1, # OPCODE_INPUT 136
+        'HDMI 1': 1, # OPCODE_INPUT 17
+        'HDMI 2': 2, # OPCODE_INPUT 18
+        'COMPUTE MODULE': 3, # OPCODE_INPUT 136
     }
 
     def __init__(self, *args, **kwargs):
