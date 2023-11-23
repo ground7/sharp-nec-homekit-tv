@@ -102,22 +102,23 @@ class TV(Accessory):
 
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
-        if value == 1:
-            reply = pd.command_set_parameter(OPCODE_INPUT, 15) # DisplayPort
-            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
-              "max_value:", reply.max_value, "current_value:", reply.current_value)
-        elif value == 2:
-            reply = pd.command_set_parameter(OPCODE_INPUT, 17) # HDMI 1
-            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
-              "max_value:", reply.max_value, "current_value:", reply.current_value)
-        elif value == 3:
-            reply = pd.command_set_parameter(OPCODE_INPUT, 18) # HMDI 2
-            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
-              "max_value:", reply.max_value, "current_value:", reply.current_value)
-        elif value == 4:
-            reply = pd.command_set_parameter(OPCODE_INPUT, 136) # COMPUTE MODULE
-            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
-              "max_value:", reply.max_value, "current_value:", reply.current_value)
+        try:
+            pd = NECPD.open("192.168.2.84")
+            pd.helper_set_destination_monitor_id(1)
+            if value == 1:
+                reply = pd.command_set_parameter(OPCODE_INPUT, 15) # DisplayPort
+            elif value == 2:
+                reply = pd.command_set_parameter(OPCODE_INPUT, 17) # HDMI 1
+            elif value == 3:
+                reply = pd.command_set_parameter(OPCODE_INPUT, 18) # HMDI 2
+            elif value == 4:
+                reply = pd.command_set_parameter(OPCODE_INPUT, 136) # COMPUTE MODULE
+            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type, "max_value:", reply.max_value, "current_value:", reply.current_value)
+        except PDError as msg:
+            print("PDError:", msg)
+        finally:
+            pd.close()
+            
 
     def _on_remote_key(self, value):
         logger.debug('Remote key %d pressed' % value)
@@ -155,18 +156,11 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG)
 
-    try:
-        pd = NECPD.open("192.168.2.84")
-        pd.helper_set_destination_monitor_id(1)
-        driver = AccessoryDriver(port=51826)
-        accessory = TV(driver, 'TV')
-        driver.add_accessory(accessory=accessory)
-        signal.signal(signal.SIGTERM, driver.signal_handler)
-        driver.start()
-    except PDError as msg:
-        print("PDError:", msg)
-    finally:
-        pd.close()
+    driver = AccessoryDriver(port=51826)
+    accessory = TV(driver, 'TV')
+    driver.add_accessory(accessory=accessory)
+    signal.signal(signal.SIGTERM, driver.signal_handler)
+    driver.start()
 
 if __name__ == '__main__':
     main()
