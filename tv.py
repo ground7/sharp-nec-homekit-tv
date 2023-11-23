@@ -99,9 +99,9 @@ class TV(Accessory):
         vcgencmd = Vcgencmd()
         # should wake up as long as power_setting auto_display_off is disabled
         if value == 1:
-            vcgencmd.display_power_on()
+            vcgencmd.display_power_on(0)
         elif value == 0:
-            vcgencmd.display_power_off()
+            vcgencmd.display_power_off(0)
 
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
