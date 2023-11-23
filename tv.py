@@ -2,6 +2,11 @@ from pyhap.accessory import Accessory
 from pyhap.const import CATEGORY_TELEVISION
 import logging
 logger = logging.getLogger(__name__)
+from nec_pd_sdk.nec_pd_sdk import NECPD
+from nec_pd_sdk.protocol import PDError
+from nec_pd_sdk.protocol import PDUnexpectedReplyError
+from nec_pd_sdk.constants import *
+from nec_pd_sdk.opcode_decoding import *
 
 class TV(Accessory):
 
