@@ -96,11 +96,23 @@ class TV(Accessory):
         # vcgencmd display_power 1 # Turns HDMI ON (should wake up as long as power_setting auto_display_off is disabled)
 
     def _on_active_identifier_changed(self, value):
-        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
-        # 'DisplayPort': 
-        # 'HDMI 1': 3, # OPCODE_INPUT 17
-        # 'HDMI 2': 3, # OPCODE_INPUT 18
-        # 'COMPUTE MODULE': 1, # OPCODE_INPUT 136
+        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1]))
+        if value == 1:
+            reply = pd.command_set_parameter(OPCODE_INPUT, 15) # DisplayPort
+            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+              "max_value:", reply.max_value, "current_value:", reply.current_value)
+        elif value == 2:
+            reply = pd.command_set_parameter(OPCODE_INPUT, 17) # HDMI 1
+            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+              "max_value:", reply.max_value, "current_value:", reply.current_value)
+        elif value == 3:
+            reply = pd.command_set_parameter(OPCODE_INPUT, 18) # HMDI 2
+            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+              "max_value:", reply.max_value, "current_value:", reply.current_value)
+        elif value == 4:
+            reply = pd.command_set_parameter(OPCODE_INPUT, 136) # COMPUTE MODULE
+            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+              "max_value:", reply.max_value, "current_value:", reply.current_value)
 
     def _on_remote_key(self, value):
         logger.debug('Remote key %d pressed' % value)
@@ -117,13 +129,18 @@ class TV(Accessory):
         #  "Exit": 10,
         #  "PlayPause": 11,
         #  "Information": 15 OPCODE_OSD__COMMUNICATIONS_INFORMATION
+        # reply = pd.command_set_parameter(OPCODE_OSD__COMMUNICATIONS_INFORMATION, 2) # 1 2
+        # logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+        #       "max_value:", reply.max_value, "current_value:", reply.current_value)
 
     def _on_mute(self, value):
         logger.debug('Mute' if value == 1 else 'Unmute') # OPCODE_AUDIO__MUTE or maybe OPCODE_SCREEN_MUTE 1 = mute 2 = unmute
+        # reply = pd.command_set_parameter(OPCODE_AUDIO__MUTE, 2) # 1 2
+        # logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
+        #       "max_value:", reply.max_value, "current_value:", reply.current_value)
 
     def _on_volume_selector(self, value):
         logger.debug('%screase volume' % ('In' if value == 0 else 'De')) # OPCODE_AUDIO__AUDIO_VOLUME 0 to 100
-
 
 def main():
     import logging
@@ -133,13 +150,18 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG)
 
-    driver = AccessoryDriver(port=51826)
-    accessory = TV(driver, 'TV')
-    driver.add_accessory(accessory=accessory)
-
-    signal.signal(signal.SIGTERM, driver.signal_handler)
-    driver.start()
-
+    try:
+        pd = NECPD.open("192.168.2.84")
+        pd.helper_set_destination_monitor_id(1)
+        driver = AccessoryDriver(port=51826)
+        accessory = TV(driver, 'TV')
+        driver.add_accessory(accessory=accessory)
+        signal.signal(signal.SIGTERM, driver.signal_handler)
+        driver.start()
+    except PDError as msg:
+        print("PDError:", msg)
+    finally:
+        pd.close()
 
 if __name__ == '__main__':
     main()
