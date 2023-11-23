@@ -96,7 +96,7 @@ class TV(Accessory):
         # vcgencmd display_power 1 # Turns HDMI ON (should wake up as long as power_setting auto_display_off is disabled)
 
     def _on_active_identifier_changed(self, value):
-        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1]))
+        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
         if value == 1:
             reply = pd.command_set_parameter(OPCODE_INPUT, 15) # DisplayPort
             logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type,
