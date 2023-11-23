@@ -6,7 +6,7 @@ from nec_pd_sdk.nec_pd_sdk import NECPD
 from nec_pd_sdk.protocol import PDError
 from nec_pd_sdk.constants import *
 from nec_pd_sdk.opcode_decoding import *
-from vcgencmd import Vcgencmd
+import cec
 
 class TV(Accessory):
 
@@ -96,12 +96,11 @@ class TV(Accessory):
 
     def _on_active_changed(self, value):
         logger.debug('Turn %s' % ('on' if value else 'off'))
-        vcgencmd = Vcgencmd()
-        # should wake up as long as power_setting auto_display_off is disabled
+        tv = cec.Device(cec.CECDEVICE_TV)
         if value == 1:
-            vcgencmd.display_power_on(0)
+            tv.power_on()
         elif value == 0:
-            vcgencmd.display_power_off(0)
+            tv.standby()
 
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
@@ -158,7 +157,7 @@ def main():
     from pyhap.accessory_driver import AccessoryDriver
 
     logging.basicConfig(level=logging.DEBUG)
-
+    cec.init()
     driver = AccessoryDriver(port=51826)
     accessory = TV(driver, 'TV')
     driver.add_accessory(accessory=accessory)
