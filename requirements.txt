@@ -1,2 +1,3 @@
 nec-pd-sdk==23.8.22
 HAP-python[QRCode]==4.9.1
+vcgencmd==0.1.1

@@ -4,9 +4,9 @@ import logging
 logger = logging.getLogger(__name__)
 from nec_pd_sdk.nec_pd_sdk import NECPD
 from nec_pd_sdk.protocol import PDError
-from nec_pd_sdk.protocol import PDUnexpectedReplyError
 from nec_pd_sdk.constants import *
 from nec_pd_sdk.opcode_decoding import *
+from vcgencmd import Vcgencmd
 
 class TV(Accessory):
 
@@ -96,9 +96,12 @@ class TV(Accessory):
 
     def _on_active_changed(self, value):
         logger.debug('Turn %s' % ('on' if value else 'off'))
-        # Switch to compute module and turn off HDMI (set to sleep from this)
-        # vcgencmd display_power 0 # Turns HDMI OFF
-        # vcgencmd display_power 1 # Turns HDMI ON (should wake up as long as power_setting auto_display_off is disabled)
+        vcgencmd = Vcgencmd()
+        # should wake up as long as power_setting auto_display_off is disabled
+        if value == 1:
+            vcgencmd.display_power_on()
+        elif value == 0:
+            vcgencmd.display_power_off()
 
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
@@ -106,14 +109,13 @@ class TV(Accessory):
             pd = NECPD.open("192.168.2.84")
             pd.helper_set_destination_monitor_id(1)
             if value == 1:
-                reply = pd.command_set_parameter(OPCODE_INPUT, 15) # DisplayPort
+                pd.command_set_parameter(OPCODE_INPUT, 15)  # DisplayPort
             elif value == 2:
-                reply = pd.command_set_parameter(OPCODE_INPUT, 17) # HDMI 1
+                pd.command_set_parameter(OPCODE_INPUT, 17)  # HDMI 1
             elif value == 3:
-                reply = pd.command_set_parameter(OPCODE_INPUT, 18) # HMDI 2
+                pd.command_set_parameter(OPCODE_INPUT, 18)  # HMDI 2
             elif value == 4:
-                reply = pd.command_set_parameter(OPCODE_INPUT, 136) # COMPUTE MODULE
-            logger.debug("command_set_parameter result:", reply.result, "opcode:", hex(reply.opcode), "type:", reply.type, "max_value:", reply.max_value, "current_value:", reply.current_value)
+                pd.command_set_parameter(OPCODE_INPUT, 136) # COMPUTE MODULE
         except PDError as msg:
             print("PDError:", msg)
         finally:
@@ -122,6 +124,7 @@ class TV(Accessory):
 
     def _on_remote_key(self, value):
         logger.debug('Remote key %d pressed' % value)
+        # https://github.com/Pulse-Eight/libcec/blob/master/src/pyCecClient/pyCecClient.py
         #  "Rewind": 0,
         #  "FastForward": 1,
         #  "NextTrack": 2,
