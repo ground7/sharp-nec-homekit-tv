@@ -45,6 +45,8 @@ pip3 install -r requirements.txt
 python3 tv.py
 ```
 
+📍A QR code will show up in the log at this point - Scan it and add it to homekit!
+
 ### Run as Systemd Service
 
 ```bash
