@@ -15,6 +15,7 @@ _...convert an awesome raspberry pi commercial display into a homekit tv and rem
 - Home App (On/Off and Switching Sources)
 
 ### To Do
+- Read Power State and Current Input Back from TV to Update the Home App
 - Finish Dockerfile (mostly works except maybe cec On/Off haven't tested)
 - Finish Remote Implementation
 - Variable abstraction for default IP address, TV name, accessory.state file location
