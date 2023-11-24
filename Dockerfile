@@ -1,4 +1,4 @@
-FROM python:3.11-bookworm-slim
+FROM python:3.11-slim-bookworm
 WORKDIR /app
 RUN apt-get install avahi libcec-dev build-essential python-dev
 COPY requirements.txt /app/
