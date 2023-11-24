@@ -1,6 +1,6 @@
 FROM python:3.11-alpine
 WORKDIR /app
-RUN apk add avahi libcec-dev build-essential python-dev
+RUN apk add avahi libcec-dev build-base python-dev
 COPY requirements.txt /app/
 RUN  pip3 install --no-cache-dir -r requirements.txt
 COPY tv.py .
