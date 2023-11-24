@@ -10,9 +10,63 @@ _...convert an awesome raspberry pi commercial display into a homekit tv and rem
 
 ---
 
+### Currently Working
+- Install Directly on the Pi
+- Home App (On/Off and Switching Sources)
+
+### To Do
+- Finish Dockerfile (mostly works except maybe cec On/Off haven't tested)
+- Finish Remote Implementation
+- Variable abstraction for default IP address, TV name, accessory.state file location
+
 <div align="center">
 
 <img src="https://github.com/ground7/sharp-nec-homekit-tv/assets/19885992/f941195f-2575-4a18-8d3a-374a7c56ebcb" alt="home-app" width="300"/>
 <img src="https://github.com/ground7/sharp-nec-homekit-tv/assets/19885992/3c040d48-43fb-4258-a4ce-bed68a4c7a3e" alt="remote-app" width="300"/>
 
 </div>
+
+---
+
+### Preinstall Steps (Doesn't work on Bookworm)
+
+```bash
+wget https://raw.githubusercontent.com/SharpNECDisplaySolutions/nec_rpi_config_tool/master/nec_rpi_config_tool.sh
+chmod a+x nec_rpi_config_tool.sh
+./nec_rpi_config_tool.sh
+```
+
+### Install Steps
+
+```bash
+git clone https://github.com/ground7/sharp-nec-homekit-tv.git
+cd sharp-nec-homekit-tv
+pip3 install -r requirements.txt
+python3 tv.py
+```
+
+### Run as Systemd Service
+
+```bash
+sudo systemctl --force --full edit homekit-tv.service
+```
+
+```s
+[Unit]
+Description=Advertise the pi as a HomeKit TV
+After=multi-user.target
+
+[Service]
+WorkingDirectory=/home/pi/sharp-nec-homekit-tv/
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/sharp-nec-homekit-tv/tv.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now homekit-tv.service
+systemctl status homekit-tv.service
+```

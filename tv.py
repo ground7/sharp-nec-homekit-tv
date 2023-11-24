@@ -17,7 +17,7 @@ class TV(Accessory):
         'DisplayPort': 0, # OPCODE_INPUT 15
         'HDMI 1': 1, # OPCODE_INPUT 17
         'HDMI 2': 2, # OPCODE_INPUT 18
-        'COMPUTE MODULE': 3, # OPCODE_INPUT 136
+        'Compute Module': 3, # OPCODE_INPUT 136
     }
 
     def __init__(self, *args, **kwargs):
@@ -105,7 +105,7 @@ class TV(Accessory):
     def _on_active_identifier_changed(self, value):
         logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
         try:
-            pd = NECPD.open("192.168.2.84")
+            pd = NECPD.open("192.168.0.10")
             pd.helper_set_destination_monitor_id(1)
             if value == 1:
                 pd.command_set_parameter(OPCODE_INPUT, 15)  # DisplayPort
