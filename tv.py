@@ -1,28 +1,32 @@
 from pyhap.accessory import Accessory
 from pyhap.const import CATEGORY_TELEVISION
 import logging
-import cec
 from nec_pd_sdk.nec_pd_sdk import NECPD
 from nec_pd_sdk.protocol import PDError
 from nec_pd_sdk.constants import PD_IR_COMMAND_CODES, OPCODE_INPUT
 from nec_pd_sdk.opcode_decoding import *
 
+# Set up logging for the application
 logger = logging.getLogger(__name__)
 
 class TV(Accessory):
+    # Define the category for the accessory (Television)
     category = CATEGORY_TELEVISION
 
+    # TV specific information and input source definitions
     NAME = 'Sharp NEC TV'
     SOURCES = {
-        'DisplayPort': 0,  # OPCODE_INPUT 15
-        'HDMI 1': 0,       # OPCODE_INPUT 17
-        'HDMI 2': 0,       # OPCODE_INPUT 18
-        'COMPUTE MODULE': 0,  # OPCODE_INPUT 136
+        'DisplayPort': 0, # Category Other
+        'HDMI 1': 3, # Category HDMI
+        'HDMI 2': 3,
+        'Compute Module': 0,
     }
 
     def __init__(self, *args, **kwargs):
+        # Call the parent class constructor to initialize the accessory
         super(TV, self).__init__(*args, **kwargs)
 
+        # Set up accessory info (e.g., manufacturer, model, serial number)
         self.set_info_service(
             manufacturer='Sharp NEC',
             model='Raspberry Pi CM4',
@@ -30,108 +34,101 @@ class TV(Accessory):
             serial_number='1'
         )
 
-        # Initialize NEC PD connection
+        # Initialize the connection to the NEC PD device (TV)
         self.pd = NECPD.open("192.168.0.10")
         self.pd.helper_set_destination_monitor_id(1)
 
-        # TV Service configuration
+        # Configure the TV service (power, input source, remote key, etc.)
         tv_service = self.add_preload_service(
-            'Television', ['Name',
-                           'ConfiguredName',
-                           'Active',  # On or Off
-                           'ActiveIdentifier',  # Media Source
-                           'RemoteKey',  # iPhone Remote App
-                           # 'Brightness', # OPCODE_PICTURE__BRIGHTNESS 0 to 100
-                           'SleepDiscoveryMode'],
+            'Television', 
+            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'CurrentMediaState', 'TargetMediaState', 'SleepDiscoveryMode']
         )
-        self._active = tv_service.configure_char(
-            'Active', value=0,
-            setter_callback=self._on_active_changed,
-        )
-        tv_service.configure_char(
-            'ActiveIdentifier', value=1,
-            setter_callback=self._on_active_identifier_changed,
-        )
-        tv_service.configure_char(
-            'RemoteKey', setter_callback=self._on_remote_key,
-        )
-        tv_service.configure_char('Name', value=self.NAME)
-        tv_service.configure_char('ConfiguredName', value=self.NAME)
-        tv_service.configure_char('SleepDiscoveryMode', value=1)
 
+        # Set up character for 'Active' (power state)
+        self.active_tv_service = tv_service.configure_char('Active', value=0, setter_callback=self._on_active_changed)
+        
+        # Set up character for 'ActiveIdentifier' (current input source)
+        self.activeidentifier_tv_service = tv_service.configure_char('ActiveIdentifier', value=1, setter_callback=self._on_active_identifier_changed)
+        
+        # Set up character for 'RemoteKey' (handling apple remote app key presses)
+        self.remotekey = tv_service.configure_char('RemoteKey', setter_callback=self._on_remote_key)
+        
+        # Set TV name and configured name
+        self.name_tv_service = tv_service.configure_char('Name', value=self.NAME)
+        self.configuredname_tv_service = tv_service.configure_char('ConfiguredName', value=self.NAME)
+        
+        # Target media state (used for controlling media)
+        self.targetmediastate = tv_service.configure_char('TargetMediaState', setter_callback=self._on_target_media_state)
+        
+        # Sleep Discovery Mode configuration (set to 1)
+        self.sleepdiscoverymode = tv_service.configure_char('SleepDiscoveryMode', value=1)
+
+        # Configure input sources (DisplayPort, HDMI, etc.)
         for idx, (source_name, source_type) in enumerate(self.SOURCES.items()):
             input_source = self.add_preload_service('InputSource', ['Name', 'Identifier'])
             input_source.configure_char('Name', value=source_name)
             input_source.configure_char('Identifier', value=idx + 1)
             input_source.configure_char('ConfiguredName', value=source_name)
             input_source.configure_char('InputSourceType', value=source_type)
-            input_source.configure_char('IsConfigured', value=1)
-            input_source.configure_char('CurrentVisibilityState', value=0)
+            input_source.configure_char('IsConfigured', value=1)  # Mark input as configured
+            input_source.configure_char('CurrentVisibilityState', value=0)  # Set visibility to shown
             tv_service.add_linked_service(input_source)
 
-        tv_speaker_service = self.add_preload_service(
-            'TelevisionSpeaker', ['Active',
-                                  'VolumeControlType',
-                                  'VolumeSelector']
-        )
-        tv_speaker_service.configure_char('Active', value=1)
-        tv_speaker_service.configure_char('VolumeControlType', value=1)
-        tv_speaker_service.configure_char(
-            'Mute', setter_callback=self._on_mute,
-        )
-        tv_speaker_service.configure_char(
-            'VolumeSelector', setter_callback=self._on_volume_selector,
-        )
+        # Configure TV Speaker Service (Mute, Volume Control, etc.)
+        tv_speaker_service = self.add_preload_service('TelevisionSpeaker', ['Active', 'VolumeControlType', 'Mute', 'VolumeSelector'])
+        self.active_tv_speaker_service = tv_speaker_service.configure_char('Active', value=1)
+        self.volumecontroltype = tv_speaker_service.configure_char('VolumeControlType', value=1)  # Relative volume control
+        self.mute = tv_speaker_service.configure_char('Mute', setter_callback=self._on_mute)
+        self.volumeselector = tv_speaker_service.configure_char('VolumeSelector', setter_callback=self._on_volume_selector)
 
     @Accessory.run_at_interval(3)
-    def _update_tv_state(self):
+    def run(self):
         """This method periodically updates the TV's state."""
         try:
             # Update the 'Active' state (power state)
             active = self.pd.command_power_status_read()
-            logger.debug('Power status: %s' % active)
-            self._active.set_value(1 if active else 0) #fix?
+            logger.debug(f'Power status: {active}')
+            self.active_tv_service.configure_char('Active', value=active)
 
-            # Update the current input source
+            # Update the current input source based on the PD connection
             current_input = self._get_current_input()
-            tv_service = self.get_service('Television')
-            tv_service.configure_char('ActiveIdentifier', value=current_input)
+            self.activeidentifier_tv_service.configure_char('ActiveIdentifier', value=current_input)
         except Exception as e:
             logger.error(f"Error updating TV state: {e}")
 
     def _get_current_input(self):
-        """Fetch the current input source from the TV."""
+        """Fetch the current input source from the TV using the NEC PD device."""
         try:
-            # Use the persistent PD connection to get the current input
             value = self.pd.command_get_parameter(OPCODE_INPUT)
-            logger.debug('Input is %s' % value)
+            logger.debug(f'Input is {value}')
             if value == 15:  # DisplayPort
                 return 1
             elif value == 17:  # HDMI 1
                 return 2
             elif value == 18:  # HDMI 2
                 return 3
-            elif value == 136:  # COMPUTE MODULE
+            elif value == 136:  # Compute Module
                 return 4
         except PDError as msg:
             logger.error(f"PDError: {msg}")
-        return 1  # Default to DisplayPort if there's an error
+        return 4  # Default to Compute Module if there's an error
 
     def _on_active_changed(self, value):
-        logger.debug('Turn %s' % ('on' if value else 'off'))
-        tv = cec.Device(cec.CECDEVICE_TV)
+        """Callback for when the 'Active' state (power) changes."""
+        logger.debug(f'Turn {"on" if value else "off"}')
         try:
             if value == 1:
-                tv.power_on()
+                # Power on command via IR remote control
                 self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('power_on'))
             elif value == 0:
-                tv.standby()
+                # Power off command via IR remote control
                 self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('standby'))
         except PDError as msg:
             logger.error(f"PDError: {msg}")
 
     def _on_active_identifier_changed(self, value):
-        logger.debug('Change input to %s' % list(self.SOURCES.keys())[value-1])
+        """Callback for when the input source changes."""
+        logger.debug(f'Change input to {list(self.SOURCES.keys())[value-1]}')
         try:
             if value == 1:
                 self.pd.command_set_parameter(OPCODE_INPUT, 15)  # DisplayPort
@@ -140,56 +137,51 @@ class TV(Accessory):
             elif value == 3:
                 self.pd.command_set_parameter(OPCODE_INPUT, 18)  # HDMI 2
             elif value == 4:
-                self.pd.command_set_parameter(OPCODE_INPUT, 136)  # COMPUTE MODULE
+                self.pd.command_set_parameter(OPCODE_INPUT, 136)  # Compute Module
         except PDError as msg:
             logger.error(f"PDError: {msg}")
 
     def _on_remote_key(self, value):
-        logger.debug('Remote key %d pressed' % value)
+        """Callback for when a remote key is pressed."""
+        logger.debug(f'Remote key {value} pressed')
         try:
-            if value == 4: # Up Arrow
-                #self.pd.command_send_ir_remote_control_code(0x15)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('up'))
-            elif value == 5: # Down Arrow
-                #self.pd.command_send_ir_remote_control_code(0x14)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('down'))
-            elif value == 6: # Left Arrow / -
-                #self.pd.command_send_ir_remote_control_code(0x21)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('-'))
-            elif value == 7: # Right Arrow / +
-                #self.pd.command_send_ir_remote_control_code(0x22)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('+'))
-            elif value == 8: # Set
-                #self.pd.command_send_ir_remote_control_code(0x23)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('set'))
-            elif value == 9: # Exit
-                #self.pd.command_send_ir_remote_control_code(0x1F)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('exit'))
-            #elif value == 11: # Play/Pause
-            #    self.pd.command_send_ir_remote_control_code(0x08)
-            elif value == 15: # Menu
-                #self.pd.command_send_ir_remote_control_code(0x20)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('menu'))
+            # Send the appropriate IR command based on the pressed remote key
+            remote_control_map = {
+                4: 'up',
+                5: 'down',
+                6: '-',
+                7: '+',
+                8: 'set',
+                9: 'exit',
+                15: 'menu'
+            }
+            if value in remote_control_map:
+                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get(remote_control_map[value]))
         except PDError as msg:
             logger.error(f"PDError: {msg}")
 
+    def _on_target_media_state(self, value):
+        """Callback for when the target media state changes."""
+        logger.debug(f'Target Media State: {value}')
+
     def _on_mute(self, value):
+        """Callback for mute/unmute."""
         logger.debug('Mute' if value == 1 else 'Unmute')
         try:
-            #self.pd.command_send_ir_remote_control_code(0x1B)
             self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('mute'))
         except PDError as msg:
             logger.error(f"PDError: {msg}")
 
     def _on_volume_selector(self, value):
-        logger.debug('%screase volume' % ('In' if value == 0 else 'De'))
+        """Callback for volume control (increase/decrease)."""
+        logger.debug(f'{"Increase" if value == 0 else "Decrease"} volume')
         try:
-            if value == 0: # Increase Volume
-                #self.pd.command_send_ir_remote_control_code(0x17)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('vol+'))
-            elif value == 1: # Decrease Volume
-                #self.pd.command_send_ir_remote_control_code(0x16)
-                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get('vol-'))
+            volume_control_map = {
+                0: 'vol+',
+                1: 'vol-'
+            }
+            if value in volume_control_map:
+                self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get(volume_control_map[value]))
         except PDError as msg:
             logger.error(f"PDError: {msg}")
 
@@ -199,13 +191,11 @@ class TV(Accessory):
             self.pd.close()
 
 def main():
-    import logging
+    """Main entry point for the accessory driver."""
     import signal
-
     from pyhap.accessory_driver import AccessoryDriver
 
     logging.basicConfig(level=logging.DEBUG)
-    cec.init()
     driver = AccessoryDriver(port=51826)
     accessory = TV(driver, 'TV')
     driver.add_accessory(accessory=accessory)
