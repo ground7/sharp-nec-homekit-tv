@@ -27,7 +27,7 @@ class TV(Accessory):
         super(TV, self).__init__(*args, **kwargs)
 
         # Initialize the connection to the NEC PD device (TV)
-        self.pd = NECPD.open("192.168.0.10")
+        self.pd = NECPD.open("192.168.2.84")
         self.pd.helper_set_destination_monitor_id(1)
 
         # Set up accessory info (e.g., manufacturer, model, serial number)
@@ -45,10 +45,10 @@ class TV(Accessory):
         )
 
         # Set up character for 'Active' (power state)
-        self.active_tv_service = tv_service.configure_char('Active', value=0, setter_callback=self._on_active_changed)
+        self.active_tv_service = tv_service.configure_char('Active', value=0, setter_callback=self._on_active_changed, getter_callback=self._get_power_status)
         
         # Set up character for 'ActiveIdentifier' (current input source)
-        self.activeidentifier_tv_service = tv_service.configure_char('ActiveIdentifier', value=1, setter_callback=self._on_active_identifier_changed)
+        self.activeidentifier_tv_service = tv_service.configure_char('ActiveIdentifier', value=1, setter_callback=self._on_active_identifier_changed, getter_callback=self._get_current_input)
         
         # Set up character for 'RemoteKey' (handling apple remote app key presses)
         self.remotekey = tv_service.configure_char('RemoteKey', setter_callback=self._on_remote_key)
@@ -83,20 +83,38 @@ class TV(Accessory):
         """This method periodically updates the TV's state."""
         try:
             # Update the 'Active' state (power state)
-            active = self.pd.command_power_status_read()
-            logger.debug(f'Power status: {active}')
-            self.active_tv_service.configure_char('Active', value=active)
+            self.active_tv_service.set_value(self.active_tv_service.get_value())
+            self.active_tv_service.notify()
 
-            # Update the current input source based on the PD connection
-            current_input = self._get_current_input()
-            self.activeidentifier_tv_service.configure_char('ActiveIdentifier', value=current_input)
+            # Update the current input source
+            self.activeidentifier_tv_service.set_value(self.activeidentifier_tv_service.get_value())
+            self.activeidentifier_tv_service.notify()
         except Exception as e:
             logger.error(f"Error updating TV state: {e}")
 
-    def _get_current_input(self):
-        """Fetch the current input source from the TV using the NEC PD device."""
+    def _get_power_status(self):
+        """Fetch the current power status from the TV using NEC PD."""
         try:
-            value = self.pd.command_get_parameter(OPCODE_INPUT)
+            value = self.pd.command_power_status_read()
+            logger.debug(f'Power status: {value}')
+            if value == 0: # Error
+                return 0
+            elif value == 1: # On
+                return 1
+            elif value == 2: # Standby
+                return 1
+            elif value == 3: # Suspend
+                return 1
+            elif value == 4: # Off
+                return 0
+        except PDError as msg:
+            logger.error(f"PDError: {msg}")
+        return 0
+
+    def _get_current_input(self):
+        """Fetch the current input source from the TV using NEC PD."""
+        try:
+            value = self.pd.command_get_parameter(OPCODE_INPUT).current_value
             logger.debug(f'Input is {value}')
             if value == 15:  # DisplayPort
                 return 1
