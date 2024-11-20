@@ -41,7 +41,7 @@ class TV(Accessory):
         # Configure the TV service (power, input source, remote key, etc.)
         tv_service = self.add_preload_service(
             'Television', 
-            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'PictureMode', 'CurrentMediaState', 'TargetMediaState', 'SleepDiscoveryMode']
+            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'PictureMode', 'SleepDiscoveryMode']
         )
 
         # Set up character for 'Active' (power state)
@@ -56,9 +56,6 @@ class TV(Accessory):
         # Set TV name and configured name
         self.name_tv_service = tv_service.configure_char('Name', value=self.NAME)
         self.configuredname_tv_service = tv_service.configure_char('ConfiguredName', value=self.NAME)
-        
-        # Target media state (used for controlling media)
-        self.targetmediastate = tv_service.configure_char('TargetMediaState', setter_callback=self._on_target_media_state)
         
         # Sleep Discovery Mode configuration (set to 1)
         self.sleepdiscoverymode = tv_service.configure_char('SleepDiscoveryMode', value=1)
@@ -168,13 +165,6 @@ class TV(Accessory):
                 self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get(remote_control_map[value]))
         except PDError as msg:
             logger.error(f"PDError: {msg}")
-
-    def _on_target_media_state(self, value):
-        """Callback for when the target media state changes."""
-        logger.debug(f'Target Media State: {value}')
-        # Play 0
-        # Pause 1
-        # Stop 2
 
     def _on_mute(self, value):
         """Callback for mute/unmute."""
