@@ -26,22 +26,22 @@ class TV(Accessory):
         # Call the parent class constructor to initialize the accessory
         super(TV, self).__init__(*args, **kwargs)
 
-        # Set up accessory info (e.g., manufacturer, model, serial number)
-        self.set_info_service(
-            manufacturer='Sharp NEC',
-            model='Raspberry Pi CM4',
-            firmware_revision='1.0',
-            serial_number='1'
-        )
-
         # Initialize the connection to the NEC PD device (TV)
         self.pd = NECPD.open("192.168.0.10")
         self.pd.helper_set_destination_monitor_id(1)
 
+        # Set up accessory info (e.g., manufacturer, model, serial number)
+        self.set_info_service(
+            manufacturer='Sharp NEC',
+            model='Raspberry Pi CM4', # self.pd.command_model_name_read()
+            firmware_revision='1.0', # self.pd.command_firmware_version_read(0) 0,1,2,3 four stored firmware versions - just get first
+            serial_number='1' # self.pd.command_serial_number_read()
+        )
+
         # Configure the TV service (power, input source, remote key, etc.)
         tv_service = self.add_preload_service(
             'Television', 
-            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'CurrentMediaState', 'TargetMediaState', 'SleepDiscoveryMode']
+            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'PictureMode', 'CurrentMediaState', 'TargetMediaState', 'SleepDiscoveryMode']
         )
 
         # Set up character for 'Active' (power state)
@@ -147,13 +147,22 @@ class TV(Accessory):
         try:
             # Send the appropriate IR command based on the pressed remote key
             remote_control_map = {
+                0: '1', # <<
+                1: '3', # >>
+                2: '1', # next
+                3: '3', # previous
                 4: 'up',
                 5: 'down',
                 6: '-',
                 7: '+',
                 8: 'set',
-                9: 'exit',
-                15: 'menu'
+                9: 'exit', # back
+                10: 'exit',
+                11: '6', # play/pause is 5/6
+                12: '', # ? menu or home?
+                13: '', # ? menu or home?
+                14: '', # ? menu or home?
+                15: 'menu' # info
             }
             if value in remote_control_map:
                 self.pd.command_send_ir_remote_control_code(PD_IR_COMMAND_CODES.get(remote_control_map[value]))
@@ -163,6 +172,9 @@ class TV(Accessory):
     def _on_target_media_state(self, value):
         """Callback for when the target media state changes."""
         logger.debug(f'Target Media State: {value}')
+        # Play 0
+        # Pause 1
+        # Stop 2
 
     def _on_mute(self, value):
         """Callback for mute/unmute."""
