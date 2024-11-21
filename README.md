@@ -13,12 +13,14 @@ _...convert an awesome raspberry pi commercial display into a homekit tv and rem
 ### Currently Working
 - Install Directly on the Pi
 - Home App (On/Off and Switching Sources)
+- Read Power State and Current Input Back from TV to Update the Home App
+- Finished Remote Control App Implementation
 
 ### To Do
-- Read Power State and Current Input Back from TV to Update the Home App
-- Finish Dockerfile (mostly works except maybe cec On/Off haven't tested)
-- Finish Remote Implementation
+- Finish Dockerfile
 - Variable abstraction for default IP address, TV name, accessory.state file location
+- There's a bug that happens if too many serial commands are sent - need to queue them up so this doesn't happen - maybe just import and use retry
+- Inputs are in a random order and can't be moved
 
 <div align="center">
 

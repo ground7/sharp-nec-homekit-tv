@@ -29,19 +29,20 @@ class TV(Accessory):
         # Initialize the connection to the NEC PD device (TV)
         self.pd = NECPD.open("192.168.2.84")
         self.pd.helper_set_destination_monitor_id(1)
+        self.firmware = self.pd.command_firmware_version_read(0) # 0,1,2,3,4 five stored firmware versions - just get first
 
         # Set up accessory info (e.g., manufacturer, model, serial number)
         self.set_info_service(
             manufacturer='Sharp NEC',
-            model='Raspberry Pi CM4', # self.pd.command_model_name_read()
-            firmware_revision='1.0', # self.pd.command_firmware_version_read(0) 0,1,2,3 four stored firmware versions - just get first
-            serial_number='1' # self.pd.command_serial_number_read()
+            model=self.pd.command_model_name_read(),
+            firmware_revision='1.0', #self.firmware[0],
+            serial_number=self.pd.command_serial_number_read()
         )
 
         # Configure the TV service (power, input source, remote key, etc.)
         tv_service = self.add_preload_service(
             'Television', 
-            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'PictureMode', 'SleepDiscoveryMode']
+            ['Active', 'ActiveIdentifier', 'RemoteKey', 'Name', 'ConfiguredName', 'SleepDiscoveryMode']
         )
 
         # Set up character for 'Active' (power state)
@@ -102,9 +103,9 @@ class TV(Accessory):
             elif value == 1: # On
                 return 1
             elif value == 2: # Standby
-                return 1
+                return 0
             elif value == 3: # Suspend
-                return 1
+                return 0
             elif value == 4: # Off
                 return 0
         except PDError as msg:
@@ -162,10 +163,6 @@ class TV(Accessory):
         try:
             # Send the appropriate IR command based on the pressed remote key
             remote_control_map = {
-                0: '1', # <<
-                1: '3', # >>
-                2: '1', # next
-                3: '3', # previous
                 4: 'up',
                 5: 'down',
                 6: '-',
@@ -173,10 +170,7 @@ class TV(Accessory):
                 8: 'set',
                 9: 'exit', # back
                 10: 'exit',
-                11: '6', # play/pause is 5/6
-                12: '', # ? menu or home?
-                13: '', # ? menu or home?
-                14: '', # ? menu or home?
+                11: 'set', # play/pause
                 15: 'menu' # info
             }
             if value in remote_control_map:
@@ -215,7 +209,7 @@ def main():
     import signal
     from pyhap.accessory_driver import AccessoryDriver
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.ERROR)
     driver = AccessoryDriver(port=51826)
     accessory = TV(driver, 'TV')
     driver.add_accessory(accessory=accessory)
