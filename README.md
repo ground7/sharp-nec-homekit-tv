@@ -4,7 +4,7 @@
 
 _...convert an awesome raspberry pi commercial display into a homekit tv and remote_
 
-<img src="https://github.com/ground7/sharp-nec-homekit-tv/assets/19885992/98074409-9660-42d8-ad4f-5d5ea6468521)" alt="me-651" width="500"/>
+<img src="https://github.com/ground7/sharp-nec-homekit-tv/assets/19885992/98074409-9660-42d8-ad4f-5d5ea6468521" alt="me-651" width="500"/>
 
 </div>
 
